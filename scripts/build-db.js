@@ -8,9 +8,7 @@ const sqlite3 = require('sqlite3').verbose();
 const dbFile = path.join(__dirname, '..', 'database.db');
 const schemaFile = path.join(__dirname, '..', 'db_schema.sql');
 
-// Purpose: Log an error and exit the build script with a non-zero code.
-// Inputs: err (Error)
-// Outputs: Process exits (no return)
+// Log an error and exit the build script with a non-zero code.
 function exitWithError(err) {
     console.error(err);
     process.exit(1);

@@ -16,9 +16,7 @@ const {
 // Attendee pages are protected for the auth extension.
 router.use(requireRole(['attendee', 'organiser'], 'attendee'));
 
-// Purpose: Run a SELECT that returns a single row using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves to one row (or undefined)
+// Run a SELECT that returns a single row using sqlite3 and async/await.
 function dbGet(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.get(sql, params || [], function (err, row) {
@@ -31,9 +29,7 @@ function dbGet(sql, params) {
     });
 }
 
-// Purpose: Run a SELECT that returns multiple rows using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves to an array of rows
+// Run a SELECT that returns multiple rows using sqlite3 and async/await.
 function dbAll(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.all(sql, params || [], function (err, rows) {
@@ -46,9 +42,7 @@ function dbAll(sql, params) {
     });
 }
 
-// Purpose: Run an INSERT/UPDATE/DELETE using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves when the statement has run
+// Run an INSERT/UPDATE/DELETE using sqlite3 and async/await.
 function dbRun(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.run(sql, params || [], function (err) {
@@ -66,9 +60,7 @@ const LIMITS = {
     attendeeName: 80
 };
 
-// Purpose: Calculate remaining ticket counts for an event by subtracting booked quantities from capacity.
-// Inputs: eventId (number)
-// Outputs: Promise that resolves to an object with remaining counts
+// Calculate remaining ticket counts for an event by subtracting booked quantities from capacity.
 async function getRemainingTickets(eventId) {
     const totals = await dbGet(
         'SELECT ' +
@@ -91,9 +83,7 @@ async function getRemainingTickets(eventId) {
     };
 }
 
-// Purpose: Load a published event by id, or render a 404 page if it does not exist.
-// Inputs: req, res, next
-// Outputs: Promise that resolves to the event row, or null if not found
+// Load a published event by id, or render a 404 page if it does not exist.
 async function loadPublishedEventOr404(req, res, next) {
     const eventId = Number.parseInt(req.params.id, 10);
     if (!Number.isFinite(eventId)) {
@@ -115,9 +105,7 @@ async function loadPublishedEventOr404(req, res, next) {
     }
 }
 
-// Purpose: Render the attendee home page showing all published events ordered by date.
-// Inputs: req (session user/role), res, next
-// Outputs: HTML response (renders attendee-home) or error via next(err)
+// Render the attendee home page showing all published events ordered by date.
 router.get('/', async function (req, res, next) {
     try {
         const settings = await dbGet('SELECT site_name, site_description FROM site_settings WHERE settings_id = 1');
@@ -140,9 +128,7 @@ router.get('/', async function (req, res, next) {
     }
 });
 
-// Purpose: Render a single published event page and show ticket pricing and remaining capacity.
-// Inputs: req.params.id, req (session user/role), res, next
-// Outputs: HTML response (renders attendee-event), or 404 if not found
+// Render a single published event page and show ticket pricing and remaining capacity.
 router.get('/events/:id', async function (req, res, next) {
     const event = await loadPublishedEventOr404(req, res, next);
     if (!event) {
@@ -167,9 +153,7 @@ router.get('/events/:id', async function (req, res, next) {
     }
 });
 
-// Purpose: Create a booking for an event and enforce ticket capacity before saving.
-// Inputs: req.params.id, req.body (attendee_name and ticket quantities), res, next
-// Outputs: Inserts a booking row then redirects back with a flash message, or re-renders with errors
+// Create a booking for an event and enforce ticket capacity before saving.
 router.post('/events/:id/book', async function (req, res, next) {
     const event = await loadPublishedEventOr404(req, res, next);
     if (!event) {
@@ -227,58 +211,23 @@ router.post('/events/:id/book', async function (req, res, next) {
     }
 
     try {
-        // BEGIN IMMEDIATE helps avoid two people grabbing the last few tickets at the same time.
-        await dbRun('BEGIN IMMEDIATE TRANSACTION');
-
-        const freshEvent = await dbGet("SELECT * FROM events WHERE event_id = ? AND state = 'published'", [event.event_id]);
-        if (!freshEvent) {
-            await dbRun('ROLLBACK');
-            res.redirect(`/attendee/events/${event.event_id}?error=${encodeURIComponent('This event is no longer available.')}`);
+        // One statement keeps the capacity check and insert atomic, including concurrent requests.
+        const saved = await dbRun(
+            "INSERT INTO bookings (event_id, attendee_name, full_qty, concession_qty, vip_qty, student_id, created_at) " +
+            "SELECT event_id, ?, ?, ?, ?, ?, datetime('now') FROM events e " +
+            "WHERE e.event_id = ? AND e.state = 'published' " +
+            'AND ? <= e.full_ticket_count - (SELECT COALESCE(SUM(full_qty), 0) FROM bookings WHERE event_id = e.event_id) ' +
+            'AND ? <= e.concession_ticket_count - (SELECT COALESCE(SUM(concession_qty), 0) FROM bookings WHERE event_id = e.event_id) ' +
+            'AND ? <= e.vip_ticket_count - (SELECT COALESCE(SUM(vip_qty), 0) FROM bookings WHERE event_id = e.event_id)',
+            [attendeeName, fullQty, concessionQty, vipQty, concessionQty > 0 ? studentId : null,
+                event.event_id, fullQty, concessionQty, vipQty]
+        );
+        if (saved.changes === 0) {
+            res.redirect(`/attendee/events/${event.event_id}?error=${encodeURIComponent('Not enough tickets available, or this event is no longer available.')}`);
             return;
         }
-
-        const totals = await dbGet(
-            'SELECT ' +
-            'COALESCE(SUM(full_qty), 0) AS full_booked, ' +
-            'COALESCE(SUM(concession_qty), 0) AS concession_booked, ' +
-            'COALESCE(SUM(vip_qty), 0) AS vip_booked ' +
-            'FROM bookings WHERE event_id = ?',
-            [event.event_id]
-        );
-
-        const fullRemaining = (freshEvent.full_ticket_count || 0) - (totals.full_booked || 0);
-        const concessionRemaining = (freshEvent.concession_ticket_count || 0) - (totals.concession_booked || 0);
-        const vipRemaining = (freshEvent.vip_ticket_count || 0) - (totals.vip_booked || 0);
-
-        if (fullQty > fullRemaining || concessionQty > concessionRemaining || vipQty > vipRemaining) {
-            await dbRun('ROLLBACK');
-            res.redirect(
-                `/attendee/events/${event.event_id}?error=${encodeURIComponent('Not enough tickets available for that request.')}`
-            );
-            return;
-        }
-
-        await dbRun(
-            'INSERT INTO bookings (event_id, attendee_name, full_qty, concession_qty, vip_qty, student_id, created_at) ' +
-            "VALUES (?, ?, ?, ?, ?, ?, datetime('now'))",
-            [
-                event.event_id,
-                attendeeName.trim(),
-                fullQty,
-                concessionQty,
-                vipQty,
-                concessionQty > 0 ? studentId : null
-            ]
-        );
-
-        await dbRun('COMMIT');
         res.redirect(`/attendee/events/${event.event_id}?message=${encodeURIComponent('Booking confirmed.')}`);
     } catch (err) {
-        try {
-            await dbRun('ROLLBACK');
-        } catch (rollbackErr) {
-            console.error(rollbackErr);
-        }
         next(err);
     }
 });

@@ -4,7 +4,7 @@
   "description": "Coursework event booking application with organiser and attendee workflows, built with Express, EJS and SQLite.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "build-db": "node scripts/build-db.js",
     "clean-db": "node scripts/clean-db.js",
     "build-db-win": "node scripts/build-db.js",
@@ -25,7 +25,7 @@
   },
   "engines": {
     "npm": ">=8.0.0",
-    "node": ">=16.0.0"
+    "node": ">=22.0.0"
   },
   "overrides": {
     "node-gyp": "^10.0.0"

@@ -22,9 +22,7 @@ const { addFlash } = require('../lib/flash');
 // Login
 router.use(requireRole('organiser'));
 
-// Purpose: Run a SELECT that returns a single row using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves to one row (or undefined)
+// Run a SELECT that returns a single row using sqlite3 and async/await.
 function dbGet(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.get(sql, params || [], function (err, row) {
@@ -37,9 +35,7 @@ function dbGet(sql, params) {
     });
 }
 
-// Purpose: Run a SELECT that returns multiple rows using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves to an array of rows
+// Run a SELECT that returns multiple rows using sqlite3 and async/await.
 function dbAll(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.all(sql, params || [], function (err, rows) {
@@ -52,9 +48,7 @@ function dbAll(sql, params) {
     });
 }
 
-// Purpose: Run an INSERT/UPDATE/DELETE using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves when the statement has run
+// Run an INSERT/UPDATE/DELETE using sqlite3 and async/await.
 function dbRun(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.run(sql, params || [], function (err) {
@@ -79,9 +73,7 @@ const LIMITS = {
 const uploadsRoot = path.join(__dirname, "..", "public", "uploads", "events");
 fs.mkdirSync(uploadsRoot, { recursive: true });
 
-// Purpose: Pick a safe file extension based on the uploaded image MIME type.
-// Inputs: mime (string)
-// Outputs: String extension such as .jpg, .png, or .webp
+// Pick a safe file extension based on the uploaded image MIME type.
 function extForMime(mime) {
     if (mime === "image/png") return ".png";
     if (mime === "image/webp") return ".webp";
@@ -114,9 +106,7 @@ const uploadEventImage = multer({
     }
 });
 
-// Purpose: Wrap the multer single-file upload and convert upload errors into a flash message + redirect.
-// Inputs: req, res, next
-// Outputs: Calls next() on success, otherwise redirects back to the edit page
+// Wrap the multer single-file upload and convert upload errors into a flash message + redirect.
 function handleImageUpload(req, res, next) {
     uploadEventImage.single("event_image")(req, res, function (err) {
         if (err) {
@@ -128,9 +118,7 @@ function handleImageUpload(req, res, next) {
     });
 }
 
-// Purpose: Render the organiser home page with site settings and lists of draft/published events.
-// Inputs: req (organiser session), res, next
-// Outputs: HTML response (renders organiser-home) or error via next(err)
+// Render the organiser home page with site settings and lists of draft/published events.
 router.get('/', async function (req, res, next) {
     try {
         const settings = await dbGet('SELECT site_name, site_description FROM site_settings WHERE settings_id = 1');
@@ -174,9 +162,7 @@ router.get('/', async function (req, res, next) {
 });
 
 
-// Purpose: Show organiser dashboard graphs using aggregated booking and event statistics.
-// Inputs: req (organiser session), res, next
-// Outputs: HTML response (renders organiser-dashboard) or error via next(err)
+// Show organiser dashboard graphs using aggregated booking and event statistics.
 router.get('/dashboard', async function (req, res, next) {
     // A simple organiser-only dashboard that visualises event and booking data.
     // All numbers come from the same SQLite database used by the rest of the app.
@@ -298,9 +284,7 @@ router.get('/dashboard', async function (req, res, next) {
             .sort(function (a, b) { return b.occupancy - a.occupancy; })
             .slice(0, 8);
 
-        // Purpose: Create a short label for an event (used in dashboard lists/labels).
-        // Inputs: ev (event row)
-        // Outputs: Short string label for UI display
+        // Create a short label for an event (used in dashboard lists/labels).
         function labelFor(ev) {
             const max = 24;
             if (!ev.title) {
@@ -340,9 +324,7 @@ router.get('/dashboard', async function (req, res, next) {
 });
 
 
-// Purpose: Show a list of bookings to the organiser, optionally filtered by event.
-// Inputs: req.query (optional event filter), req (organiser session), res, next
-// Outputs: HTML response (renders organiser-bookings) or error via next(err)
+// Show a list of bookings to the organiser, optionally filtered by event.
 router.get('/bookings', async function (req, res, next) {
     // gives the organiser a clear view of every booking that has been made.
     // It is useful for checking demand and for confirming that ticket limits are being enforced.
@@ -383,9 +365,7 @@ router.get('/bookings', async function (req, res, next) {
     }
 });
 
-// Purpose: Render the site settings form prefilled from the database.
-// Inputs: req (organiser session), res, next
-// Outputs: HTML response (renders site-settings)
+// Render the site settings form prefilled from the database.
 router.get('/settings', async function (req, res, next) {
     try {
         const settings = await dbGet('SELECT site_name, site_description FROM site_settings WHERE settings_id = 1');
@@ -395,9 +375,7 @@ router.get('/settings', async function (req, res, next) {
     }
 });
 
-// Purpose: Validate and save updated site settings to the database.
-// Inputs: req.body (site_name, site_description), req (organiser session), res, next
-// Outputs: Updates settings then redirects to /organiser, or re-renders with validation errors
+// Validate and save updated site settings to the database.
 router.post('/settings', async function (req, res, next) {
     try {
         const siteName = cleanSingleLine(req.body.site_name, LIMITS.siteName);
@@ -430,9 +408,7 @@ router.post('/settings', async function (req, res, next) {
     }
 });
 
-// Purpose: Create a new draft event and redirect to its edit page.
-// Inputs: req (organiser session), res, next
-// Outputs: Inserts a draft event row then redirects to /organiser/events/:id/edit
+// Create a new draft event and redirect to its edit page.
 router.post('/events/new', async function (req, res, next) {
     try {
         const result = await dbRun(
@@ -453,9 +429,7 @@ router.post('/events/new', async function (req, res, next) {
     }
 });
 
-// Purpose: Render the organiser edit page for one event (prefilled from the database).
-// Inputs: req.params.id, req (organiser session), res, next
-// Outputs: HTML response (renders organiser-edit-event) or 404 if event is missing
+// Render the organiser edit page for one event (prefilled from the database).
 router.get('/events/:id/edit', async function (req, res, next) {
     try {
         const eventId = Number.parseInt(req.params.id, 10);
@@ -478,9 +452,7 @@ router.get('/events/:id/edit', async function (req, res, next) {
 
 
 
-// Purpose: Delete an uploaded event image from disk, if the path is within the uploads folder.
-// Inputs: relPath (string)
-// Outputs: No return value (best-effort delete)
+// Delete an uploaded event image from disk, if the path is within the uploads folder.
 function removeUploadedEventImage(relPath) {
     if (!relPath) {
         return;
@@ -493,9 +465,7 @@ function removeUploadedEventImage(relPath) {
     fs.unlink(abs, function () { });
 }
 
-// Purpose: Upload an image for an event and store its relative path in the database.
-// Inputs: req.params.id, req.file (uploaded image), req (organiser session), res, next
-// Outputs: Saves image + updates event then redirects back to the edit page
+// Upload an image for an event and store its relative path in the database.
 router.post("/events/:id/image", handleImageUpload, async function (req, res, next) {
     try {
         const eventId = Number.parseInt(req.params.id, 10);
@@ -506,6 +476,7 @@ router.post("/events/:id/image", handleImageUpload, async function (req, res, ne
 
         const event = await dbGet("SELECT event_id, image_path FROM events WHERE event_id = ?", [eventId]);
         if (!event) {
+            if (req.file) removeUploadedEventImage("uploads/events/" + req.file.filename);
             res.status(404).render("not-found", { path: req.originalUrl });
             return;
         }
@@ -529,9 +500,7 @@ router.post("/events/:id/image", handleImageUpload, async function (req, res, ne
     }
 });
 
-// Purpose: Remove the current event image from disk and clear its saved path.
-// Inputs: req.params.id, req (organiser session), res, next
-// Outputs: Deletes file (if present), updates DB, then redirects back to the edit page
+// Remove the current event image from disk and clear its saved path.
 router.post("/events/:id/image/delete", async function (req, res, next) {
     try {
         const eventId = Number.parseInt(req.params.id, 10);
@@ -558,9 +527,7 @@ router.post("/events/:id/image/delete", async function (req, res, next) {
     }
 });
 
-// Purpose: Validate organiser edits and update the event fields and modified timestamp.
-// Inputs: req.params.id, req.body (title/description/date/tickets/prices), req (organiser session), res, next
-// Outputs: Updates event then redirects to /organiser, or re-renders with errors
+// Validate organiser edits and update the event fields and modified timestamp.
 router.post('/events/:id/edit', async function (req, res, next) {
     try {
         const eventId = Number.parseInt(req.params.id, 10);
@@ -647,13 +614,16 @@ router.post('/events/:id/edit', async function (req, res, next) {
             return;
         }
 
-        await dbRun(
+        const updated = await dbRun(
             'UPDATE events SET title = ?, description = ?, event_date = ?, ' +
             'full_ticket_label = ?, concession_ticket_label = ?, vip_ticket_label = ?, ' +
             'full_ticket_count = ?, full_ticket_price = ?, ' +
             'concession_ticket_count = ?, concession_ticket_price = ?, ' +
             'vip_ticket_count = ?, vip_ticket_price = ?, ' +
-            "updated_at = datetime('now') WHERE event_id = ?",
+            "updated_at = datetime('now') WHERE event_id = ? " +
+            'AND ? >= (SELECT COALESCE(SUM(full_qty), 0) FROM bookings WHERE event_id = events.event_id) ' +
+            'AND ? >= (SELECT COALESCE(SUM(concession_qty), 0) FROM bookings WHERE event_id = events.event_id) ' +
+            'AND ? >= (SELECT COALESCE(SUM(vip_qty), 0) FROM bookings WHERE event_id = events.event_id)',
             [
                 title,
                 description,
@@ -667,19 +637,20 @@ router.post('/events/:id/edit', async function (req, res, next) {
                 concessionPrice,
                 vipCount,
                 vipPrice,
-                eventId
+                eventId, fullCount, concessionCount, vipCount
             ]
         );
 
+        if (!updated.changes) {
+            addFlash(req, 'danger', 'Ticket capacity cannot be lower than the number already booked.');
+        }
         res.redirect(`/organiser/events/${eventId}/edit`);
     } catch (err) {
         next(err);
     }
 });
 
-// Purpose: Publish a draft event (draft → published) and set its published timestamp.
-// Inputs: req.params.id, req (organiser session), res, next
-// Outputs: Updates event state then redirects to /organiser
+// Publish a draft event (draft → published) and set its published timestamp.
 router.post('/events/:id/publish', async function (req, res, next) {
     try {
         const eventId = Number.parseInt(req.params.id, 10);
@@ -699,9 +670,7 @@ router.post('/events/:id/publish', async function (req, res, next) {
     }
 });
 
-// Purpose: Delete an event and its related bookings from the database.
-// Inputs: req.params.id, req (organiser session), res, next
-// Outputs: Deletes event then redirects to /organiser
+// Delete an event and its related bookings from the database.
 router.post('/events/:id/delete', async function (req, res, next) {
     try {
         const eventId = Number.parseInt(req.params.id, 10);

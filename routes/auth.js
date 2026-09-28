@@ -16,9 +16,7 @@ const {
 } = require('../lib/auth');
 const { cleanSingleLine, isNonEmpty } = require('../lib/validation');
 
-// Purpose: Run a SELECT that returns a single row using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves to one row (or undefined)
+// Run a SELECT that returns a single row using sqlite3 and async/await.
 function dbGet(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.get(sql, params || [], function (err, row) {
@@ -31,9 +29,7 @@ function dbGet(sql, params) {
     });
 }
 
-// Purpose: Run an INSERT/UPDATE/DELETE using sqlite3 and async/await.
-// Inputs: sql (string), params (array)
-// Outputs: Promise that resolves when the statement has run
+// Run an INSERT/UPDATE/DELETE using sqlite3 and async/await.
 function dbRun(sql, params) {
     return new Promise(function (resolve, reject) {
         global.db.run(sql, params || [], function (err) {
@@ -46,31 +42,23 @@ function dbRun(sql, params) {
     });
 }
 
-// Purpose: Basic email format check used during login/registration/reset validation.
-// Inputs: value (string)
-// Outputs: Boolean indicating whether the email looks valid
+// Basic email format check used during login/registration/reset validation.
 function isLikelyEmail(value) {
     // This is intentionally simple. We just want to reject obviously wrong inputs.
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-// Purpose: Return the correct home path for a given role.
-// Inputs: role ('organiser'|'attendee')
-// Outputs: String URL path (e.g., /organiser or /attendee)
+// Return the correct home path for a given role.
 function roleRedirect(role) {
     return role === 'organiser' ? '/organiser' : '/attendee';
 }
 
-// Purpose: Convert a role key into a show-friendly label for templates.
-// Inputs: role ('organiser'|'attendee')
-// Outputs: String label used in views
+// Convert a role key into a show-friendly label for templates.
 function viewRoleName(role) {
     return role === 'organiser' ? 'Organiser' : 'Attendee';
 }
 
-// Purpose: Sanitise an OTP input so it contains digits only.
-// Inputs: value (any)
-// Outputs: String of digits (typically 6 characters)
+// Sanitise an OTP input so it contains digits only.
 function cleanOtp(value) {
     const raw = cleanSingleLine(value, 20);
     const compact = raw.replace(/\s+/g, '');
@@ -81,27 +69,21 @@ function cleanOtp(value) {
     return compact;
 }
 
-// Purpose: Create a stable label used as the OTP account name in the authenticator app.
-// Inputs: role, email
-// Outputs: String label like 'Role: email'
+// Create a stable label used as the OTP account name in the authenticator app.
 function userLabelForOtp(role, email) {
     // The label shows up in authenticator apps.
     const roleName = viewRoleName(role);
     return `CM2040 Event Manager (${roleName}) - ${email}`;
 }
 
-// Purpose: Generate a QR code image (data URL) from an OTPAuth URL.
-// Inputs: otpAuthUrl (string)
-// Outputs: Promise that resolves to a PNG data URL string
+// Generate a QR code image (data URL) from an OTPAuth URL.
 async function makeQrDataUrl(otpAuthUrl) {
     // A data URL means we do not need to save any QR files on disk.
     return QRCode.toDataURL(otpAuthUrl, { margin: 1, width: 220 });
 }
 
 
-// Purpose: Verify a 6-digit authenticator code against a Base32 secret.
-// Inputs: secretBase32 (string), token (string)
-// Outputs: Boolean indicating whether the code is valid
+// Verify a 6-digit authenticator code against a Base32 secret.
 function verifyTotp(secretBase32, token) {
     return speakeasy.totp.verify({
         secret: secretBase32,
@@ -111,9 +93,7 @@ function verifyTotp(secretBase32, token) {
     });
 }
 
-// Purpose: Create and store a time-limited password reset token for a user.
-// Inputs: userId (number)
-// Outputs: Promise that resolves to the created token string
+// Create and store a time-limited password reset token for a user.
 async function createResetTokenForUser(userId) {
     const token = crypto.randomBytes(24).toString('hex');
     await dbRun(
@@ -124,9 +104,7 @@ async function createResetTokenForUser(userId) {
 }
 
 
-// Purpose: Load the fields needed for 2FA setup/verification for a specific user.
-// Inputs: userId (number), role (string)
-// Outputs: Promise that resolves to a user row or null
+// Load the fields needed for 2FA setup/verification for a specific user.
 async function loadTwoFactorUser(userId, role) {
     return dbGet(
         'SELECT user_id, role, display_name, email, two_factor_opt_in, two_factor_secret, is_2fa_enabled FROM users WHERE user_id = ? AND role = ?',
@@ -134,9 +112,7 @@ async function loadTwoFactorUser(userId, role) {
     );
 }
 
-// Purpose: Ensure the user has a 2FA secret available (create one if missing).
-// Inputs: user (row), role (string)
-// Outputs: Promise that resolves to the Base32 secret
+// Ensure the user has a 2FA secret available (create one if missing).
 async function ensureTwoFactorSecret(user, role) {
     if (user.two_factor_secret) {
         return user.two_factor_secret;
@@ -157,9 +133,7 @@ async function ensureTwoFactorSecret(user, role) {
     return user.two_factor_secret;
 }
 
-// Purpose: Build the OTPAuth URL and QR data for displaying on the 2FA setup screen.
-// Inputs: user (row), role (string)
-// Outputs: Promise that resolves to { otpAuthUrl, qrDataUrl, secretHint }
+// Build the OTPAuth URL and QR data for displaying on the 2FA setup screen.
 async function buildQrForUser(user, role) {
     const secret = await ensureTwoFactorSecret(user, role);
 
@@ -174,9 +148,7 @@ async function buildQrForUser(user, role) {
     return { qrDataUrl: qrImage, secret: secret };
 }
 
-// Purpose: Persist the 2FA secret and mark 2FA as enabled for the user.
-// Inputs: userId (number), role (string), secretBase32 (string)
-// Outputs: Promise that resolves when the user record has been updated
+// Persist the 2FA secret and mark 2FA as enabled for the user.
 async function enableTwoFactorForUser(userId, role, secretBase32) {
     await dbRun(
         'UPDATE users SET two_factor_opt_in = 1, two_factor_secret = ?, is_2fa_enabled = 1, updated_at = datetime(\'now\') WHERE user_id = ? AND role = ?',
@@ -190,9 +162,7 @@ const LIMITS = {
     password: 200
 };
 
-// Purpose: Render the registration form for the selected role (organiser or attendee).
-// Inputs: req.params.role, res
-// Outputs: HTML response (renders register form) or 404 for invalid roles
+// Render the registration form for the selected role (organiser or attendee).
 router.get('/:role/register', function (req, res) {
     const role = normaliseRole(req.params.role);
     if (!role) {
@@ -208,9 +178,7 @@ router.get('/:role/register', function (req, res) {
     });
 });
 
-// Purpose: Validate registration details and create a new user account for the selected role.
-// Inputs: req.params.role, req.body (name, email, password, optional 2FA toggle), res, next
-// Outputs: Creates user then redirects to login, or re-renders with validation errors
+// Validate registration details and create a new user account for the selected role.
 router.post('/:role/register', async function (req, res, next) {
     try {
         const role = normaliseRole(req.params.role);
@@ -277,9 +245,7 @@ router.post('/:role/register', async function (req, res, next) {
     }
 });
 
-// Purpose: Show the QR code page to set up 2FA after a user opts in.
-// Inputs: req.params.role, session user, res, next
-// Outputs: HTML response (renders 2FA setup) or redirects if not eligible
+// Show the QR code page to set up 2FA after a user opts in.
 router.get('/:role/2fa-setup', async function (req, res, next) {
     try {
         const role = normaliseRole(req.params.role);
@@ -294,7 +260,7 @@ router.get('/:role/2fa-setup', async function (req, res, next) {
 
         if (!user) {
             req.session.pending2fa_setup = null;
-    req.session.pending2fa_reset = null;
+
             res.redirect(`/auth/${role}/register`);
             return;
         }
@@ -313,9 +279,7 @@ router.get('/:role/2fa-setup', async function (req, res, next) {
     }
 });
 
-// Purpose: Verify the 6-digit authenticator code and enable 2FA for the logged-in user.
-// Inputs: req.params.role, req.body (otp), session user, res, next
-// Outputs: Enables 2FA then redirects to role home, or re-renders with errors
+// Verify the 6-digit authenticator code and enable 2FA for the logged-in user.
 router.post('/:role/2fa-setup', async function (req, res, next) {
     try {
         const role = normaliseRole(req.params.role);
@@ -336,7 +300,7 @@ router.post('/:role/2fa-setup', async function (req, res, next) {
         const user = await loadTwoFactorUser(pending.user_id, role);
         if (!user) {
             req.session.pending2fa_setup = null;
-    req.session.pending2fa_reset = null;
+
             res.redirect(`/auth/${role}/register`);
             return;
         }
@@ -361,10 +325,11 @@ router.post('/:role/2fa-setup', async function (req, res, next) {
 
         await enableTwoFactorForUser(user.user_id, role, qrInfo.secret);
         req.session.pending2fa_setup = null;
-    req.session.pending2fa_reset = null;
+
 
         const loggedIn = await dbGet('SELECT user_id, role, display_name, email FROM users WHERE user_id = ?', [user.user_id]);
-        req.session.regenerate(function () {
+        req.session.regenerate(function (err) {
+            if (err) { next(err); return; }
             setLoggedInUser(req, loggedIn);
             addFlash(req, 'info', 'Two-factor authentication enabled. You are now signed in.');
             res.redirect(roleRedirect(role));
@@ -375,99 +340,7 @@ router.post('/:role/2fa-setup', async function (req, res, next) {
 });
 
 
-// Purpose: Show the QR code page to re-configure 2FA during a password reset flow.
-// Inputs: req.params.role, session pending reset, res, next
-// Outputs: HTML response (renders 2FA reset setup) or redirects if session is missing
-router.get('/:role/2fa-reset-setup', async function (req, res, next) {
-    try {
-        const role = normaliseRole(req.params.role);
-        const pending = req.session ? req.session.pending2fa_reset : null;
-
-        if (!role || !pending || pending.role !== role) {
-            res.redirect(`/auth/${role || 'organiser'}/reset-request`);
-            return;
-        }
-
-        const user = await loadTwoFactorUser(pending.user_id, role);
-        if (!user) {
-            req.session.pending2fa_reset = null;
-            res.redirect(`/auth/${role}/reset-request`);
-            return;
-        }
-
-        const qrInfo = await buildQrForUser(user, role);
-
-        res.render('auth/twofa-reset-setup', {
-            role: role,
-            roleLabel: viewRoleName(role),
-            qrDataUrl: qrInfo.qrDataUrl,
-            secret: user.two_factor_secret,
-            errors: []
-        });
-    } catch (err) {
-        next(err);
-    }
-});
-
-// Purpose: Verify the 6-digit authenticator code and save the new 2FA secret for the user.
-// Inputs: req.params.role, req.body (otp), session pending reset, res, next
-// Outputs: Updates 2FA secret then continues the reset flow, or re-renders with errors
-router.post('/:role/2fa-reset-setup', async function (req, res, next) {
-    try {
-        const role = normaliseRole(req.params.role);
-        const pending = req.session ? req.session.pending2fa_reset : null;
-
-        if (!role || !pending || pending.role !== role) {
-            res.redirect(`/auth/${role || 'organiser'}/reset-request`);
-            return;
-        }
-
-        const code = cleanOtp(req.body.code);
-        const errors = [];
-
-        if (!code) {
-            errors.push('Please enter the 6-digit code from your authenticator app.');
-        }
-
-        const user = await loadTwoFactorUser(pending.user_id, role);
-        if (!user) {
-            req.session.pending2fa_reset = null;
-            res.redirect(`/auth/${role}/reset-request`);
-            return;
-        }
-
-        const qrInfo = await buildQrForUser(user, role);
-        const ok = code ? verifyTotp(qrInfo.secret, code) : false;
-
-        if (!ok) {
-            errors.push('That code did not match. Please try again.');
-        }
-
-        if (errors.length > 0) {
-            res.render('auth/twofa-reset-setup', {
-                role: role,
-                roleLabel: viewRoleName(role),
-                qrDataUrl: qrInfo.qrDataUrl,
-                secret: user.two_factor_secret,
-                errors: errors
-            });
-            return;
-        }
-
-        await enableTwoFactorForUser(user.user_id, role, qrInfo.secret);
-        req.session.pending2fa_reset = null;
-
-        const token = await createResetTokenForUser(user.user_id);
-        res.redirect(`/auth/reset/${token}`);
-    } catch (err) {
-        next(err);
-    }
-});
-
-
-// Purpose: Render the login form for the selected role.
-// Inputs: req.params.role, res
-// Outputs: HTML response (renders login form) or 404 for invalid roles
+// Render the login form for the selected role.
 router.get('/:role/login', function (req, res) {
     const role = normaliseRole(req.params.role);
     if (!role) {
@@ -483,9 +356,7 @@ router.get('/:role/login', function (req, res) {
     });
 });
 
-// Purpose: Authenticate a user by email/password and route them through 2FA if enabled.
-// Inputs: req.params.role, req.body (email, password), session, res, next
-// Outputs: Starts a session then redirects to home or 2FA pages, or re-renders with errors
+// Authenticate a user by email/password and route them through 2FA if enabled.
 router.post('/:role/login', async function (req, res, next) {
     try {
         const role = normaliseRole(req.params.role);
@@ -553,7 +424,8 @@ router.post('/:role/login', async function (req, res, next) {
         }
 
         // No 2FA for this account: create the session and continue.
-        req.session.regenerate(function () {
+        req.session.regenerate(function (err) {
+            if (err) { next(err); return; }
             setLoggedInUser(req, user);
             addFlash(req, 'info', `Welcome back, ${user.display_name}.`);
             res.redirect(roleRedirect(role));
@@ -563,9 +435,7 @@ router.post('/:role/login', async function (req, res, next) {
     }
 });
 
-// Purpose: Render the 2FA code entry page for a user who has passed password login.
-// Inputs: req.params.role, session pending2fa, res
-// Outputs: HTML response (renders 2FA prompt) or redirects if not pending
+// Render the 2FA code entry page for a user who has passed password login.
 router.get('/:role/2fa', function (req, res) {
     const role = normaliseRole(req.params.role);
     const pending = req.session ? req.session.pending2fa_login : null;
@@ -582,9 +452,7 @@ router.get('/:role/2fa', function (req, res) {
     });
 });
 
-// Purpose: Verify the 6-digit code and complete login for a 2FA-enabled user.
-// Inputs: req.params.role, req.body (otp), session pending2fa, res, next
-// Outputs: Completes login then redirects to home, or re-renders with errors
+// Verify the 6-digit code and complete login for a 2FA-enabled user.
 router.post('/:role/2fa', async function (req, res, next) {
     try {
         const role = normaliseRole(req.params.role);
@@ -645,7 +513,8 @@ router.post('/:role/2fa', async function (req, res, next) {
 
         req.session.pending2fa_login = null;
 
-        req.session.regenerate(function () {
+        req.session.regenerate(function (err) {
+            if (err) { next(err); return; }
             setLoggedInUser(req, user);
             addFlash(req, 'info', `Welcome back, ${user.display_name}.`);
             res.redirect(roleRedirect(role));
@@ -655,9 +524,7 @@ router.post('/:role/2fa', async function (req, res, next) {
     }
 });
 
-// Purpose: Log the current user out and clear their session.
-// Inputs: req (session), res
-// Outputs: Clears session and redirects to the main home page
+// Log the current user out and clear their session.
 router.post('/logout', function (req, res) {
     // POST logout keeps it consistent with the rest of our forms.
     if (!req.session) {
@@ -668,16 +535,14 @@ router.post('/logout', function (req, res) {
     clearLoggedInUser(req);
     req.session.pending2fa_login = null;
     req.session.pending2fa_setup = null;
-    req.session.pending2fa_reset = null;
+
 
     req.session.destroy(function () {
         res.redirect('/');
     });
 });
 
-// Purpose: Render the 'forgot password' page for the selected role.
-// Inputs: req.params.role, res
-// Outputs: HTML response (renders reset-request) or 404 for invalid roles
+// Render the 'forgot password' page for the selected role.
 router.get('/:role/reset-request', function (req, res) {
     const role = normaliseRole(req.params.role);
     if (!role) {
@@ -694,9 +559,7 @@ router.get('/:role/reset-request', function (req, res) {
     });
 });
 
-// Purpose: Validate email and create a password reset token (response is generic for unknown emails).
-// Inputs: req.params.role, req.body (email), session, res, next
-// Outputs: Creates reset token and redirects to reset form, or re-renders with errors
+// Recovery requires the authenticator configured during a previous sign-in.
 router.post('/:role/reset-request', async function (req, res, next) {
     try {
         const role = normaliseRole(req.params.role);
@@ -704,53 +567,30 @@ router.post('/:role/reset-request', async function (req, res, next) {
             res.status(404).render('not-found', { path: req.originalUrl });
             return;
         }
-
         const email = cleanSingleLine(req.body.email, LIMITS.email).toLowerCase();
-
-        const errors = [];
-        if (!isNonEmpty(email) || !isLikelyEmail(email)) {
-            errors.push('Please enter a valid email address.');
-        }
-
-        if (errors.length > 0) {
-            res.render('auth/reset-request', {
+        const code = cleanOtp(req.body.code);
+        const user = await dbGet(
+            'SELECT user_id, two_factor_secret, is_2fa_enabled FROM users WHERE role = ? AND email = ?',
+            [role, email]
+        );
+        if (!user || !user.is_2fa_enabled || !user.two_factor_secret || !code || !verifyTotp(user.two_factor_secret, code)) {
+            res.status(400).render('auth/reset-request', {
                 role: role,
                 roleLabel: viewRoleName(role),
                 values: { email: email },
                 info: null,
-                errors: errors
+                errors: ['Recovery requires this account’s existing authenticator code. Check your details and try again.']
             });
             return;
         }
-
-        const user = await dbGet(
-            'SELECT user_id, role, email FROM users WHERE role = ? AND email = ?',
-            [role, email]
-        );
-
-        // response generic for unknown emails.
-        if (!user) {
-            res.render('auth/reset-request', {
-                role: role,
-                roleLabel: viewRoleName(role),
-                values: { email: email },
-                info: true,
-                errors: []
-            });
-            return;
-        }
-
-        req.session.pending2fa_reset = { user_id: user.user_id, role: role };
-        res.redirect(`/auth/${role}/2fa-reset-setup`);
+        const token = await createResetTokenForUser(user.user_id);
+        res.redirect(`/auth/reset/${token}`);
     } catch (err) {
         next(err);
     }
 });
 
-
-// Purpose: Validate a reset token and render the password reset form.
-// Inputs: req.params.token, res, next
-// Outputs: HTML response (renders reset form) or 404 if token is invalid/expired
+// Validate a reset token and render the password reset form.
 router.get('/reset/:token', async function (req, res, next) {
     try {
         const token = cleanSingleLine(req.params.token, 200);
@@ -781,9 +621,7 @@ router.get('/reset/:token', async function (req, res, next) {
     }
 });
 
-// Purpose: Validate the token and new password, then update the user's password (and handle 2FA reset if needed).
-// Inputs: req.params.token, req.body (new password fields), session, res, next
-// Outputs: Updates password then redirects to login, or re-renders with errors
+// Validate the token and new password, then consume the token before updating the password.
 router.post('/reset/:token', async function (req, res, next) {
     try {
         const token = cleanSingleLine(req.params.token, 200);
@@ -824,8 +662,16 @@ router.post('/reset/:token', async function (req, res, next) {
         }
 
         const passwordHash = await hashPassword(password);
+        const claimed = await dbRun(
+            "UPDATE password_resets SET used_at = datetime('now') " +
+            "WHERE reset_id = ? AND used_at IS NULL AND datetime(expires_at) > datetime('now')",
+            [row.reset_id]
+        );
+        if (!claimed.changes) {
+            res.status(404).render('not-found', { path: req.originalUrl });
+            return;
+        }
         await dbRun('UPDATE users SET password_hash = ?, updated_at = datetime(\'now\') WHERE user_id = ?', [passwordHash, row.user_id]);
-        await dbRun('UPDATE password_resets SET used_at = datetime(\'now\') WHERE reset_id = ?', [row.reset_id]);
 
         addFlash(req, 'info', 'Password updated. Please log in with your new password.');
         res.redirect(`/auth/${row.role}/login`);

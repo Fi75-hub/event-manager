@@ -14,7 +14,7 @@ A server-rendered event booking application with organiser and attendee workflow
 
 ## Run locally
 
-Use Node.js with npm. The portfolio smoke check used Node.js 22; the package declares Node.js 16 or later. Run commands from the repository root.
+Use Node.js 22 or later with npm. Run commands from the repository root.
 
 ```sh
 npm ci
@@ -39,7 +39,7 @@ export SESSION_SECRET="$(node -e "process.stdout.write(require('crypto').randomB
 npm start
 ```
 
-Open **http://localhost:3000**. Changing the secret invalidates existing session cookies. `.env.example` documents the variable name if you use your own environment loader.
+Open **http://localhost:3000**. Set `PORT` to use a different port. Changing the secret invalidates existing session cookies. `.env.example` documents the variable name if you use your own environment loader.
 
 The `sqlite3` dependency uses a native module. If npm cannot obtain a compatible prebuilt binary, its installation may require the platform's native build tools.
 
@@ -65,12 +65,16 @@ scripts/          Database build and cleanup scripts
 db_schema.sql     Tables, constraints and demonstration events
 ```
 
-`database.db`, uploaded images, dependencies and environment files are excluded from version control. The upload directory is created automatically. No previous accounts, bookings or uploaded images are included in this portfolio copy.
+`database.db`, uploaded images, dependencies and environment files are excluded from version control. The upload directory is created automatically. The repository contains no saved accounts, bookings or uploaded images.
 
 ## Coursework scope
 
-This application is intended for local demonstration. It uses the default in-memory session store, shares events between organiser accounts and includes a simplified password-reset workflow that shows authenticator setup after entering an email address. That reset flow does not establish ownership of the email account and needs redesign before real users or public deployment. Ticket bookings are recorded locally; there is no payment processing or email service.
+This application is intended for local demonstration. It uses the default in-memory session store, shares events between organiser accounts and supports password recovery only with a previously enabled authenticator. It has no recovery option for accounts without an authenticator or for a lost device. Ticket bookings are recorded locally; there is no payment processing or email service.
 
 ## Attribution
 
-This project was developed using the provided CM2040 course starter template (Express, EJS and SQLite). The original package metadata credited **Simon Katan**; that credit is retained in `contributors`. This portfolio presents Faizan Ilyas's coursework implementation and extensions without claiming authorship of the starter or third-party libraries. The existing package license field is inherited from the source project; no new license has been added.
+This project was developed using the provided CM2040 course starter template (Express, EJS and SQLite). The original package metadata credited **Simon Katan**; that credit is retained in `contributors`. Third-party libraries and the course starter retain their original authorship and licensing.
+
+## Tests
+
+Run `npm test` after installing dependencies. The tests use a temporary database and uploads directory. They cover organiser and attendee access, event management, ticket validation, concurrent bookings, image uploads, two-factor login and password recovery.
