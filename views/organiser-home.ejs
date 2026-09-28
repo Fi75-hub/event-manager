@@ -1,0 +1,131 @@
+<%- include('partials/header', { title: 'Organiser Home Page' }) %>
+
+<section class="card">
+    <div class="split">
+        <div>
+            <h1>Organiser Home Page</h1>
+            <p class="lead"><strong><%= settings.site_name %></strong> — <%= settings.site_description %></p>
+        </div>
+        <div class="split__actions">
+            <a class="btn btn--ghost" href="/organiser/settings">Site Settings</a>
+            <a class="btn btn--ghost" href="/organiser/dashboard">Dashboard</a>
+            <a class="btn btn--ghost" href="/organiser/bookings">Bookings</a>
+            <form action="/organiser/events/new" method="post">
+                <button class="btn" type="submit">Create New Event</button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Published Events</h2>
+
+    <% if (!publishedEvents || publishedEvents.length === 0) { %>
+        <p class="muted">No published events yet.</p>
+    <% } else { %>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Event Date</th>
+                        <th>Published</th>
+                        <th>Tickets</th>
+                        <th>Share Link</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% publishedEvents.forEach(function (event) { %>
+                        <tr>
+                            <td>
+                                <div class="cell-title"><%= event.title %></div>
+                                <div class="cell-sub muted">Created: <%= event.created_at %> · Updated: <%= event.updated_at %></div>
+                            </td>
+                            <td><%= event.event_date %></td>
+                            <td><%= event.published_at || '-' %></td>
+                            <td>
+                                <% const stdPrice = Number(event.full_ticket_price || 0); %>
+                                <% const studentPrice = Number(event.concession_ticket_price || 0); %>
+                                <% const discount = Math.max(0, Math.round((stdPrice - studentPrice) * 100) / 100); %>
+
+                                <div class="muted"><%= event.full_ticket_label || 'Standard' %>: <%= event.full_ticket_count %> total · <%= event.full_remaining %> remaining @ £<%= stdPrice.toFixed(2) %></div>
+                                <div class="muted"><%= event.concession_ticket_label || 'Student' %>: <%= event.concession_ticket_count %> total · <%= event.concession_remaining %> remaining @ £<%= studentPrice.toFixed(2) %>
+                                    <% if (discount > 0) { %>
+                                        <span class="muted">· Discount £<%= discount.toFixed(2) %></span>
+                                    <% } %>
+                                </div>
+                                <div class="muted"><%= event.vip_ticket_label || 'VIP' %>: <%= (event.vip_ticket_count || 0) %> total · <%= event.vip_remaining %> remaining @ £<%= Number(event.vip_ticket_price || 0).toFixed(2) %></div>
+</td>
+                            <td>
+                                <a class="link" href="/attendee/events/<%= event.event_id %>">/attendee/events/<%= event.event_id %></a>
+                            </td>
+                            <td class="actions">
+                                <a class="btn btn--ghost" href="/organiser/events/<%= event.event_id %>/edit">Edit</a>
+                                <form action="/organiser/events/<%= event.event_id %>/delete" method="post" class="inline">
+                                    <button class="btn btn--danger" type="submit" onclick="return confirm('Delete this event?');">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</section>
+
+<section class="card">
+    <h2>Draft Events</h2>
+
+    <% if (!draftEvents || draftEvents.length === 0) { %>
+        <p class="muted">No draft events yet.</p>
+    <% } else { %>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Event Date</th>
+                        <th>Created</th>
+                        <th>Last Modified</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% draftEvents.forEach(function (event) { %>
+                        <tr>
+                            <td>
+                                <div class="cell-title"><%= event.title %></div>
+                                <% const stdPrice = Number(event.full_ticket_price || 0); %>
+                                <% const studentPrice = Number(event.concession_ticket_price || 0); %>
+                                <% const discount = Math.max(0, Math.round((stdPrice - studentPrice) * 100) / 100); %>
+
+                                <div class="muted"><%= event.full_ticket_label || 'Standard' %>: <%= event.full_ticket_count %> total · <%= event.full_remaining %> remaining @ £<%= stdPrice.toFixed(2) %></div>
+                                <div class="muted"><%= event.concession_ticket_label || 'Student' %>: <%= event.concession_ticket_count %> total · <%= event.concession_remaining %> remaining @ £<%= studentPrice.toFixed(2) %>
+                                    <% if (discount > 0) { %>
+                                        <span class="muted">· Discount £<%= discount.toFixed(2) %></span>
+                                    <% } %>
+                                </div>
+                                <div class="muted"><%= event.vip_ticket_label || 'VIP' %>: <%= (event.vip_ticket_count || 0) %> total · <%= event.vip_remaining %> remaining @ £<%= Number(event.vip_ticket_price || 0).toFixed(2) %></div>
+</td>
+                            <td><%= event.event_date %></td>
+                            <td><%= event.created_at %></td>
+                            <td><%= event.updated_at %></td>
+                            <td class="actions">
+                                <a class="btn btn--ghost" href="/organiser/events/<%= event.event_id %>/edit">Edit</a>
+                                <form action="/organiser/events/<%= event.event_id %>/publish" method="post" class="inline">
+                                    <button class="btn" type="submit">Publish</button>
+                                </form>
+                                <form action="/organiser/events/<%= event.event_id %>/delete" method="post" class="inline">
+                                    <button class="btn btn--danger" type="submit" onclick="return confirm('Delete this draft?');">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</section>
+
+<%- include('partials/footer') %>

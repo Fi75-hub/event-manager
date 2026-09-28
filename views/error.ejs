@@ -1,0 +1,17 @@
+<%- include('partials/header', { title: 'Error' }) %>
+
+<section class="card">
+    <h1>Something went wrong</h1>
+    <p class="muted">The server hit an unexpected error.</p>
+
+    <div class="alert alert--danger">
+        <strong><%= (error && error.name) ? error.name : 'Error' %></strong>
+        <div><%= (error && error.message) ? error.message : 'Unknown error' %></div>
+    </div>
+
+    <div class="form__actions">
+        <a class="btn" href="/">Go to Main Home Page</a>
+    </div>
+</section>
+
+<%- include('partials/footer') %>

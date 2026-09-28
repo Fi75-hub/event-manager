@@ -1,0 +1,30 @@
+<%- include('../partials/header', { title: roleLabel + ' 2FA Verification' }) %>
+
+<section class="card">
+    <h1><%= roleLabel %> 2FA Verification</h1>
+    <p class="muted">Enter the 6-digit code from your authenticator app to finish signing in.</p>
+
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert--danger">
+            <ul>
+                <% errors.forEach(function (e) { %>
+                    <li><%= e %></li>
+                <% }); %>
+            </ul>
+        </div>
+    <% } %>
+
+    <form class="form" method="post" action="/auth/<%= role %>/2fa">
+        <label class="label">
+            6-digit code
+            <input class="input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required />
+        </label>
+
+        <div class="form__actions">
+            <button class="btn" type="submit">Continue</button>
+            <a class="btn btn--ghost" href="/auth/<%= role %>/login">Back</a>
+        </div>
+    </form>
+</section>
+
+<%- include('../partials/footer') %>

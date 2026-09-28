@@ -1,0 +1,35 @@
+<%- include('partials/header', { title: 'Site Settings' }) %>
+
+<section class="card">
+    <h1>Site Settings</h1>
+    <p class="muted">Update the site name and description shown to attendees.</p>
+
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert--danger">
+            <ul>
+                <% errors.forEach(function (e) { %>
+                    <li><%= e %></li>
+                <% }); %>
+            </ul>
+        </div>
+    <% } %>
+
+    <form action="/organiser/settings" method="post" class="form">
+        <label class="label">
+            Site name
+            <input class="input" type="text" name="site_name" value="<%= settings.site_name %>" required />
+        </label>
+
+        <label class="label">
+            Site description
+            <textarea class="textarea" name="site_description" rows="4" required><%= settings.site_description %></textarea>
+        </label>
+
+        <div class="form__actions">
+            <button class="btn" type="submit">Save Settings</button>
+            <a class="btn btn--ghost" href="/organiser">Back</a>
+        </div>
+    </form>
+</section>
+
+<%- include('partials/footer') %>

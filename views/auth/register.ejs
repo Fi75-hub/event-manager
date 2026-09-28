@@ -1,0 +1,67 @@
+<%- include('../partials/header', { title: roleLabel + ' Sign Up' }) %>
+
+<section class="card">
+    <h1><%= roleLabel %> Sign Up</h1>
+    <p class="muted">Create an account to access the <%= roleLabel.toLowerCase() %> pages.</p>
+
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert--danger">
+            <ul>
+                <% errors.forEach(function (e) { %>
+                    <li><%= e %></li>
+                <% }); %>
+            </ul>
+        </div>
+    <% } %>
+
+    <form class="form" method="post" action="/auth/<%= role %>/register">
+        <label class="label">
+            Your name
+            <input class="input" type="text" name="display_name" value="<%= values.display_name %>" required />
+        </label>
+
+        <label class="label">
+            Email
+            <input class="input" type="email" name="email" value="<%= values.email %>" required />
+        </label>
+
+        <label class="label">
+            Password
+            <input class="input" type="password" name="password" required />
+        </label>
+
+        <label class="label">
+            Confirm password
+            <input class="input" type="password" name="confirm_password" required />
+        </label>
+
+
+        <div>
+            <p class="muted">Enable two-factor authentication (2FA) for this account?</p>
+            <label class="label">
+                <span>2FA option</span>
+                <div>
+                    <label class="muted">
+                        <input type="radio" name="enable_2fa" value="yes" <%= values.enable_2fa === 'yes' ? 'checked' : '' %> />
+                        Yes, enable 2FA (recommended)
+                    </label>
+                    <br />
+                    <label class="muted">
+                        <input type="radio" name="enable_2fa" value="no" <%= values.enable_2fa !== 'yes' ? 'checked' : '' %> />
+                        No, not right now
+                    </label>
+                </div>
+            </label>
+        </div>
+
+        </label>
+
+        <div class="form__actions">
+            <button class="btn" type="submit">Create account</button>
+            <a class="btn btn--ghost" href="/auth/<%= role %>/login">I already have an account</a>
+            <a class="btn btn--ghost" href="/">Back</a>
+        </div>
+    </form>
+</section>
+
+<%- include('../partials/footer') %>

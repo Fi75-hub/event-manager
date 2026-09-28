@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/main.css" />
+</head>
+<body>
+    <header class="topbar">
+        <div class="container topbar__inner">
+            <a class="brand" href="/">Event Manager</a>
+            <nav class="nav">
+                <a class="nav__link" href="/organiser">Organiser</a>
+                <a class="nav__link" href="/attendee">Attendee</a>
+            </nav>
+            <div class="auth">
+                <% if (currentUser) { %>
+                    <span class="auth__who">Signed in as <strong><%= currentUser.display_name %></strong> (<%= currentUser.role %>)</span>
+                    <form class="auth__logout" method="post" action="/auth/logout">
+                        <button class="btn btn--ghost" type="submit">Logout</button>
+                    </form>
+                <% } else { %>
+                    <a class="nav__link" href="/auth/organiser/login">Organiser Login</a>
+                    <a class="nav__link" href="/auth/attendee/login">Attendee Login</a>
+                <% } %>
+            </div>
+        </div>
+    </header>
+    <main class="container content">
+        <% if (flash && flash.length > 0) { %>
+            <div class="flash">
+                <% flash.forEach(function (item) { %>
+                    <div class="flash__item flash__item--<%= item.type %>"><%= item.message %></div>
+                <% }) %>
+            </div>
+        <% } %>

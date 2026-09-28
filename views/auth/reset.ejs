@@ -1,0 +1,35 @@
+<%- include('../partials/header', { title: roleLabel + ' Set New Password' }) %>
+
+<section class="card">
+    <h1>Set a New Password</h1>
+    <p class="muted">This will update your password for the <%= roleLabel.toLowerCase() %> account.</p>
+
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert--danger">
+            <ul>
+                <% errors.forEach(function (e) { %>
+                    <li><%= e %></li>
+                <% }); %>
+            </ul>
+        </div>
+    <% } %>
+
+    <form class="form" method="post" action="/auth/reset/<%= token %>">
+        <label class="label">
+            New password
+            <input class="input" type="password" name="password" required />
+        </label>
+
+        <label class="label">
+            Confirm new password
+            <input class="input" type="password" name="confirm_password" required />
+        </label>
+
+        <div class="form__actions">
+            <button class="btn" type="submit">Update password</button>
+            <a class="btn btn--ghost" href="/">Back</a>
+        </div>
+    </form>
+</section>
+
+<%- include('../partials/footer') %>

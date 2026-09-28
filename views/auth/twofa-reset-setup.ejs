@@ -1,0 +1,45 @@
+<%- include('../partials/header', { title: roleLabel + ' Password Reset (2FA)' }) %>
+
+<section class="card">
+    <h1><%= roleLabel %> Password Reset</h1>
+    <p class="muted">
+        To reset your password, please set up an authenticator for this account.
+        Scan the QR code and enter the 6-digit code from your app.
+    </p>
+
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert--danger">
+            <ul>
+                <% errors.forEach(function (e) { %>
+                    <li><%= e %></li>
+                <% }); %>
+            </ul>
+        </div>
+    <% } %>
+
+    <div class="twofa">
+        <div class="twofa__qr">
+            <img class="twofa__img" src="<%= qrDataUrl %>" alt="2FA QR code" />
+        </div>
+        <div class="twofa__manual">
+            <p class="muted">If you cannot scan the QR code, enter this key manually:</p>
+            <p class="code"><%= secret %></p>
+        </div>
+    </div>
+
+    <form class="form" method="post" action="/auth/<%= role %>/2fa-reset-setup">
+        <label class="label">
+            6-digit code
+            <input class="input" type="text" name="code" inputmode="numeric" pattern="\d{6}"
+                   maxlength="6" autocomplete="one-time-code" required />
+        </label>
+
+        <div class="form__actions">
+            <button class="btn" type="submit">Continue</button>
+            <a class="btn btn--ghost" href="/auth/<%= role %>/login">Back to login</a>
+            <a class="btn btn--ghost" href="/">Back</a>
+        </div>
+    </form>
+</section>
+
+<%- include('../partials/footer') %>

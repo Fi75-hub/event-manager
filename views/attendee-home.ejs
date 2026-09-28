@@ -1,0 +1,34 @@
+<%- include('partials/header', { title: 'Attendee Home Page' }) %>
+
+<section class="card">
+    <h1>Attendee Home Page</h1>
+    <p class="lead"><strong><%= settings.site_name %></strong> — <%= settings.site_description %></p>
+</section>
+
+<section class="card">
+    <h2>Published Events</h2>
+
+    <% if (!events || events.length === 0) { %>
+        <p class="muted">No published events are available right now.</p>
+    <% } else { %>
+        <div class="list">
+            <% events.forEach(function (event) { %>
+                <a class="list__item" href="/attendee/events/<%= event.event_id %>">
+                    <div class="list__main">
+                        <div class="cell-title"><%= event.title %></div>
+                        <div class="muted">Event date: <%= event.event_date %></div>
+                        <div class="muted">
+                            Remaining:
+                            <%= event.full_ticket_label || "Standard" %> <%= event.full_remaining %>,
+                            <%= event.concession_ticket_label || "Student" %> <%= event.concession_remaining %>
+                            , <%= event.vip_ticket_label || "VIP" %> <%= event.vip_remaining %>
+</div>
+                    </div>
+                    <div class="list__chevron">›</div>
+                </a>
+            <% }); %>
+        </div>
+    <% } %>
+</section>
+
+<%- include('partials/footer') %>

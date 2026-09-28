@@ -1,0 +1,73 @@
+<%- include('partials/header', { title: 'Organiser Bookings' }) %>
+
+<section class="card">
+    <div class="split">
+        <div>
+            <h1>Organiser Bookings</h1>
+            <p class="lead"><strong><%= settings.site_name %></strong> — <%= settings.site_description %></p>
+            <p class="muted">This page shows bookings across all events. You can filter by event if you want a narrower view.</p>
+        </div>
+        <div class="split__actions">
+            <a class="btn btn--ghost" href="/organiser">Back</a>
+        </div>
+    </div>
+
+    <form method="get" action="/organiser/bookings" class="form form--inline">
+        <label class="label">
+            Filter by event
+            <select class="input" name="event_id">
+                <option value="">All events</option>
+                <% events.forEach(function (ev) { %>
+                    <option value="<%= ev.event_id %>" <%= (filterEventId && ev.event_id === filterEventId) ? 'selected' : '' %>>
+                        <%= ev.title %> (<%= ev.state %>)
+                    </option>
+                <% }) %>
+            </select>
+        </label>
+        <button class="btn btn--ghost" type="submit">Apply</button>
+    </form>
+
+    <% if (!bookings || bookings.length === 0) { %>
+        <p class="muted">No bookings have been made yet.</p>
+    <% } else { %>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Booked At</th>
+                        <th>Event</th>
+                        <th>Attendee</th>
+                        <th>Tickets</th>
+                        <th>Total Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% bookings.forEach(function (b) { %>
+                        <tr>
+                            <td><%= b.created_at %></td>
+                            <td>
+                                <div class="cell-title"><%= b.event_title %></div>
+                                <div class="cell-sub muted">Event date: <%= b.event_date %> · ID: <%= b.event_id %></div>
+                            </td>
+                            <td><%= b.attendee_name %></td>
+                            <td>
+                                <div class="muted"><%= b.full_ticket_label || 'Standard' %>: <%= b.full_qty %></div>
+                                <div class="muted"><%= b.concession_ticket_label || 'Student' %>: <%= b.concession_qty %>
+                                    <% if (b.concession_qty > 0 && b.student_id) { %>
+                                        <span class="muted">· ID: <%= b.student_id %></span>
+                                    <% } %>
+                                </div>
+                                <% if (b.vip_qty && b.vip_qty > 0) { %>
+                                    <div class="muted"><%= b.vip_ticket_label || 'VIP' %>: <%= b.vip_qty %></div>
+                                <% } %>
+                            </td>
+                            <td>£<%= Number(b.total_cost || 0).toFixed(2) %></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</section>
+
+<%- include('partials/footer') %>

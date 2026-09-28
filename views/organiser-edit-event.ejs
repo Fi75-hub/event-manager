@@ -1,0 +1,158 @@
+<%- include('partials/header', { title: 'Organiser Edit Event Page' }) %>
+
+<section class="card">
+    <div class="split">
+        <div>
+            <h1>Organiser Edit Event Page</h1>
+            <p class="muted">Event ID: <%= event.event_id %> · Status: <%= event.state %></p>
+            <p class="muted">Created: <%= event.created_at %></p>
+            <p class="muted">Last modified: <%= event.updated_at %></p>
+            <% if (event.published_at) { %>
+                <p class="muted">Published: <%= event.published_at %></p>
+            <% } %>
+        </div>
+        <div class="split__actions">
+            <a class="btn btn--ghost" href="/organiser">Back</a>
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Event image</h2>
+
+    <% if (event.image_path) { %>
+        <div class="event-image">
+            <img class="event-image__img" src="/<%= event.image_path %>" alt="Event image" />
+        </div>
+        <form action="/organiser/events/<%= event.event_id %>/image/delete" method="post" class="inline">
+            <button class="btn btn--danger" type="submit" onclick="return confirm('Remove this image?');">Remove image</button>
+        </form>
+    <% } else { %>
+        <p class="muted">No image uploaded yet.</p>
+    <% } %>
+
+    <form action="/organiser/events/<%= event.event_id %>/image" method="post" enctype="multipart/form-data" class="form">
+        <label class="label">
+            Upload image
+            <input class="input" type="file" name="event_image" accept="image/jpeg,image/png,image/webp" required />
+        </label>
+        <div class="form__actions">
+            <button class="btn" type="submit">Upload</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Edit Details</h2>
+
+    <% if (errors && errors.length > 0) { %>
+        <div class="alert alert--danger">
+            <ul>
+                <% errors.forEach(function (e) { %>
+                    <li><%= e %></li>
+                <% }); %>
+            </ul>
+        </div>
+    <% } %>
+
+    <form action="/organiser/events/<%= event.event_id %>/edit" method="post" class="form">
+        <label class="label">
+            Event title
+            <input class="input" type="text" name="title" value="<%= event.title %>" required />
+        </label>
+
+        <label class="label">
+            Event description
+            <textarea class="textarea" name="description" rows="5" required><%= event.description %></textarea>
+        </label>
+
+        <label class="label">
+            Event date
+            <input class="input" type="date" name="event_date" value="<%= event.event_date %>" required />
+        </label>
+
+        <div class="grid grid--2">
+            <div class="card card--sub">
+                <h3>Standard tickets</h3>
+                <label class="label">
+                    Ticket label
+                    <input class="input" type="text" name="full_ticket_label" maxlength="40" value="<%= event.full_ticket_label || 'Standard' %>" />
+                </label>
+                <div class="grid grid--2">
+                    <label class="label">
+                        Number of tickets
+                        <input class="input" type="number" name="full_ticket_count" min="0" step="1" value="<%= event.full_ticket_count %>" required />
+                    </label>
+                    <label class="label">
+                        Price (£)
+                        <input class="input" type="number" name="full_ticket_price" min="0" step="0.01" value="<%= event.full_ticket_price %>" required />
+                    </label>
+                </div>
+            </div>
+
+            <div class="card card--sub">
+                <h3>Student tickets</h3>
+                <label class="label">
+                    Ticket label
+                    <input class="input" type="text" name="concession_ticket_label" maxlength="40" value="<%= event.concession_ticket_label || 'Student' %>" />
+                </label>
+                <div class="grid grid--2">
+                    <label class="label">
+                        Number of tickets
+                        <input class="input" type="number" name="concession_ticket_count" min="0" step="1" value="<%= event.concession_ticket_count %>" required />
+                    </label>
+                    <label class="label">
+                        Price (£)
+                        <input class="input" type="number" name="concession_ticket_price" min="0" step="0.01" value="<%= event.concession_ticket_price %>" required />
+                    </label>
+                </div>
+
+                <% const stdPrice = Number(event.full_ticket_price || 0); %>
+                <% const studentPrice = Number(event.concession_ticket_price || 0); %>
+                <% const discount = Math.max(0, Math.round((stdPrice - studentPrice) * 100) / 100); %>
+                <% if (discount > 0) { %>
+                    <p class="muted">Discount vs standard: £<%= discount.toFixed(2) %> off</p>
+                <% } %>
+            </div>
+
+            <div class="card card--sub">
+                <h3>VIP tickets</h3>
+                <label class="label">
+                    Ticket label
+                    <input class="input" type="text" name="vip_ticket_label" maxlength="40" value="<%= event.vip_ticket_label || 'VIP' %>" />
+                </label>
+                <div class="grid grid--2">
+                    <label class="label">
+                        Number of tickets
+                        <input class="input" type="number" name="vip_ticket_count" min="0" step="1" value="<%= event.vip_ticket_count || 0 %>" required />
+                    </label>
+                    <label class="label">
+                        Price (£)
+                        <input class="input" type="number" name="vip_ticket_price" min="0" step="0.01" value="<%= event.vip_ticket_price || 0 %>" required />
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form__actions">
+            <button class="btn" type="submit">Submit changes</button>
+            <a class="btn btn--ghost" href="/organiser">Back</a>
+        </div>
+    </form>
+
+    <div class="toolbar">
+        <% if (event.state === 'draft') { %>
+            <form action="/organiser/events/<%= event.event_id %>/publish" method="post" class="inline">
+                <button class="btn" type="submit">Publish</button>
+            </form>
+        <% } else { %>
+            <a class="btn btn--ghost" href="/attendee/events/<%= event.event_id %>">View attendee page</a>
+        <% } %>
+
+        <form action="/organiser/events/<%= event.event_id %>/delete" method="post" class="inline">
+            <button class="btn btn--danger" type="submit" onclick="return confirm('Delete this event?');">Delete</button>
+        </form>
+    </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,150 @@
+<%- include('partials/header', { title: 'Event Details' }) %>
+
+<section class="card">
+    <div class="split">
+        <div>
+            <h1><%= event.title %></h1>
+            <p class="muted">Event date: <%= event.event_date %></p>
+        </div>
+        <div class="split__actions">
+            <a class="btn btn--ghost" href="/attendee">Back</a>
+        </div>
+    </div>
+
+    <% if (event.image_path) { %>
+        <div class="event-image">
+            <img class="event-image__img" src="/<%= event.image_path %>" alt="<%= event.title %>" />
+        </div>
+    <% } %>
+
+    <div class="prose">
+        <p><%= event.description %></p>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Tickets</h2>
+    <div class="grid grid--2">
+        <div class="ticket">
+            <div class="ticket__title"><%= event.full_ticket_label || 'Standard' %></div>
+            <div class="ticket__meta">Price: £<%= Number(event.full_ticket_price || 0).toFixed(2) %></div>
+            <div class="ticket__meta">Remaining: <%= remaining.fullRemaining %></div>
+        </div>
+
+        <div class="ticket" id="studentTicketCard">
+            <div class="ticket__title"><%= event.concession_ticket_label || 'Student' %></div>
+
+            <% const stdPrice = Number(event.full_ticket_price || 0); %>
+            <% const studentPrice = Number(event.concession_ticket_price || 0); %>
+            <% const discount = Math.max(0, Math.round((stdPrice - studentPrice) * 100) / 100); %>
+
+            <div class="ticket__meta" id="studentPriceLocked" <%= studentUnlocked ? 'style="display:none"' : '' %>>
+                Price: <span class="muted">locked</span>
+            </div>
+            <div class="ticket__meta" id="studentPriceUnlocked" <%= studentUnlocked ? '' : 'style="display:none"' %>>
+                Price: £<%= studentPrice.toFixed(2) %>
+                <% if (discount > 0) { %>
+                    <span class="muted">· You save £<%= discount.toFixed(2) %></span>
+                <% } %>
+            </div>
+
+            <div class="ticket__meta">Remaining: <%= remaining.concessionRemaining %></div>
+            <div class="ticket__meta muted">Enter a 13-digit student ID to unlock pricing.</div>
+        </div>
+        <div class="ticket">
+            <div class="ticket__title"><%= event.vip_ticket_label || 'VIP' %></div>
+            <div class="ticket__meta">Price: £<%= Number(event.vip_ticket_price || 0).toFixed(2) %></div>
+            <div class="ticket__meta">Remaining: <%= remaining.vipRemaining %></div>
+        </div>
+</div>
+</section>
+
+<section class="card">
+    <h2>Book Tickets</h2>
+
+    <% if (message) { %>
+        <div class="alert alert--success"><%= message %></div>
+    <% } %>
+
+    <% if (error) { %>
+        <div class="alert alert--danger"><%= error %></div>
+    <% } %>
+
+    <form action="/attendee/events/<%= event.event_id %>/book" method="post" class="form" id="bookingForm">
+        <label class="label">
+            Your name
+            <input class="input" type="text" name="attendee_name" value="<%= form.attendee_name %>" required />
+        </label>
+
+        <div class="grid grid--2">
+            <label class="label">
+                <%= event.full_ticket_label || 'Standard' %> quantity
+                <input class="input" type="number" name="full_qty" min="0" step="1" value="<%= form.full_qty %>" />
+            </label>
+            <% const vipDisabled = (event.vip_ticket_count || 0) === 0 || (remaining.vipRemaining || 0) === 0; %>
+            <label class="label">
+                <%= event.vip_ticket_label || 'VIP' %> quantity
+                <input class="input" type="number" name="vip_qty" min="0" step="1" value="<%= form.vip_qty %>" <%= vipDisabled ? 'disabled' : '' %> />
+            </label>
+            <% if (vipDisabled) { %>
+                <input type="hidden" name="vip_qty" value="0" />
+            <% } %>
+</div>
+
+        <div class="grid grid--2">
+            <label class="label">
+                Student ID (13 digits)
+                <input class="input" type="text" name="student_id" inputmode="numeric" maxlength="13" value="<%= form.student_id || '' %>" id="studentIdInput" placeholder="e.g. 1234567890123" />
+            </label>
+
+            <label class="label">
+                <%= event.concession_ticket_label || 'Student' %> quantity
+                <input class="input" type="number" name="concession_qty" min="0" step="1" value="<%= form.concession_qty %>" id="studentQtyInput" <%= studentUnlocked ? '' : 'disabled' %> />
+            </label>
+        </div>
+
+        <div class="form__actions">
+            <button class="btn" type="submit">Book</button>
+            <a class="btn btn--ghost" href="/attendee">Back</a>
+        </div>
+    </form>
+</section>
+
+<script>
+// Lightweight unlock for student pricing:
+// when the user enters a 13 digit ID, show the student price and enable student quantity.
+(function () {
+    const idInput = document.getElementById('studentIdInput');
+    const qtyInput = document.getElementById('studentQtyInput');
+    const locked = document.getElementById('studentPriceLocked');
+    const unlocked = document.getElementById('studentPriceUnlocked');
+
+    if (!idInput || !qtyInput || !locked || !unlocked) {
+        return;
+    }
+
+    function digitsOnly(text) {
+        return String(text || '').replace(/\D+/g, '');
+    }
+
+    function setUnlocked(isUnlocked) {
+        locked.style.display = isUnlocked ? 'none' : '';
+        unlocked.style.display = isUnlocked ? '' : 'none';
+        qtyInput.disabled = !isUnlocked;
+        if (!isUnlocked) {
+            qtyInput.value = '0';
+        }
+    }
+
+    function onChange() {
+        const digits = digitsOnly(idInput.value);
+        idInput.value = digits.slice(0, 13);
+        setUnlocked(digits.length === 13);
+    }
+
+    idInput.addEventListener('input', onChange);
+    onChange();
+})();
+</script>
+
+<%- include('partials/footer') %>

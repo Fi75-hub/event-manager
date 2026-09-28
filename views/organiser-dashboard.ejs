@@ -1,0 +1,484 @@
+<%- include('partials/header', { title: 'Organiser Dashboard' }) %>
+
+<section class="card">
+    <div class="split">
+        <div>
+            <h1>Organiser Dashboard</h1>
+            <p class="lead"><strong><%= settings.site_name %></strong> — <%= settings.site_description %></p>
+            <p class="muted">A quick snapshot of events, bookings, ticket usage, and revenue.</p>
+        </div>
+        <div class="split__actions">
+            <a class="btn btn--ghost" href="/organiser">Back to Organiser Home</a>
+        </div>
+    </div>
+</section>
+
+<section class="grid-cards">
+    <div class="card card--mini">
+        <div class="muted">Events</div>
+        <div class="stat"><%= dashboard.totals.events %></div>
+        <div class="muted">Draft: <%= dashboard.stateCounts.draft %> · Published: <%= dashboard.stateCounts.published %></div>
+    </div>
+
+    <div class="card card--mini">
+        <div class="muted">Bookings</div>
+        <div class="stat"><%= dashboard.totals.bookings %></div>
+        <div class="muted">Total bookings placed</div>
+    </div>
+
+    <div class="card card--mini">
+        <div class="muted">Tickets sold</div>
+        <div class="stat"><%= dashboard.totals.tickets %></div>
+        <div class="muted">Capacity: <%= dashboard.totals.capacity %></div>
+    </div>
+
+    <div class="card card--mini">
+        <div class="muted">Revenue</div>
+        <div class="stat">£<%= dashboard.totals.revenue.toFixed(2) %></div>
+        <div class="muted">Based on booked ticket quantities</div>
+    </div>
+</section>
+
+<section class="charts">
+    <div class="card">
+        <h2>Draft vs Published</h2>
+        <div class="chart-wrap">
+            <canvas id="chartState" width="520" height="320"></canvas>
+        </div>
+        <div id="legendState" class="legend"></div>
+    </div>
+
+    <div class="card">
+        <h2>Top revenue events</h2>
+        <div class="chart-wrap">
+            <canvas id="chartRevenue" width="520" height="320"></canvas>
+        </div>
+        <div class="muted">Shows up to 8 events with the highest revenue.</div>
+    </div>
+
+    <div class="card">
+        <h2>Top occupancy</h2>
+        <div class="chart-wrap">
+            <canvas id="chartOccupancy" width="520" height="320"></canvas>
+        </div>
+        <div class="muted">Occupancy is tickets sold divided by total ticket capacity.</div>
+    </div>
+
+    <div class="card">
+        <h2>Bookings over the last 30 days</h2>
+        <div class="chart-wrap">
+            <canvas id="chartBookings" width="520" height="320"></canvas>
+        </div>
+        <div class="muted">Counts the number of bookings created each day.</div>
+    </div>
+</section>
+
+<section class="card">
+    <h2>Insights & next steps</h2>
+        <%
+        const last30 = dashboard.last30 || [];
+        const last7 = last30.slice(-7);
+        const prev7 = last30.slice(-14, -7);
+
+        function sumRows(rows, key) {
+            return rows.reduce(function (acc, r) {
+                return acc + (r && r[key] ? r[key] : 0);
+            }, 0);
+        }
+
+        const last7Bookings = sumRows(last7, 'bookings');
+        const prev7Bookings = sumRows(prev7, 'bookings');
+        const last7Tickets = sumRows(last7, 'tickets');
+        const prev7Tickets = sumRows(prev7, 'tickets');
+
+        let bookingDeltaLabel = '0%';
+        if (prev7Bookings === 0) {
+            bookingDeltaLabel = last7Bookings === 0 ? '0%' : 'new';
+        } else {
+            const delta = ((last7Bookings - prev7Bookings) / prev7Bookings) * 100;
+            bookingDeltaLabel = (delta >= 0 ? '+' : '') + delta.toFixed(0) + '%';
+        }
+
+        const zeroBookingDays = last30.filter(function (r) { return (r.bookings || 0) === 0; }).length;
+
+        const peakDay = last30.reduce(function (best, r) {
+            return (r.bookings || 0) > (best.bookings || 0) ? r : best;
+        }, { day: '-', bookings: 0, tickets: 0 });
+
+        const avgTicketsPerBooking = dashboard.totals.bookings ? (dashboard.totals.tickets / dashboard.totals.bookings) : 0;
+        const avgRevenuePerBooking = dashboard.totals.bookings ? (dashboard.totals.revenue / dashboard.totals.bookings) : 0;
+        const revenuePerTicket = dashboard.totals.tickets ? (dashboard.totals.revenue / dashboard.totals.tickets) : 0;
+
+        const overallOccupancy = dashboard.totals.capacity ? (dashboard.totals.tickets / dashboard.totals.capacity) * 100 : null;
+
+        const highDemand = (dashboard.topOccupancy || []).filter(function (row) {
+            return (row.value || 0) >= 75;
+        });
+    %>
+
+    <div class="table-grid">
+        <div>
+            <h3 class="muted" style="margin: 0 0 10px 0;">Actions</h3>
+            <div class="list">
+                <a class="list__item" href="/organiser">
+                    <div>
+                        <strong>Review drafts</strong>
+                        <div class="muted"><%= dashboard.stateCounts.draft %> draft event<%= dashboard.stateCounts.draft === 1 ? '' : 's' %> waiting for edits or publishing.</div>
+                    </div>
+                    <div class="list__chevron">›</div>
+                </a>
+
+                <a class="list__item" href="/organiser/bookings">
+                    <div>
+                        <strong>Check bookings</strong>
+                        <div class="muted"><%= dashboard.totals.bookings %> total booking<%= dashboard.totals.bookings === 1 ? '' : 's' %>. Busiest day: <%= peakDay.day %> (<%= peakDay.bookings %>).</div>
+                    </div>
+                    <div class="list__chevron">›</div>
+                </a>
+
+                <div class="list__item">
+                    <div>
+                        <strong>High-demand events</strong>
+                        <% if (highDemand.length === 0) { %>
+                            <div class="muted">No events above 75% occupancy in the current top list.</div>
+                        <% } else { %>
+                            <div class="muted">
+                                <% highDemand.slice(0, 3).forEach(function (row, i) { %>
+                                    <%= row.label %> (<%= Number(row.value).toFixed(1) %>%)<%= i < Math.min(highDemand.length, 3) - 1 ? ', ' : '' %>
+                                <% }); %>
+                                <% if (highDemand.length > 3) { %> and <%= highDemand.length - 3 %> more<% } %>.
+                            </div>
+                        <% } %>
+                    </div>
+                    <div class="muted" style="white-space: nowrap;"><%= highDemand.length %> flagged</div>
+                </div>
+
+                <div class="list__item">
+                    <div>
+                        <strong>Quiet days (last 30)</strong>
+                        <div class="muted"><%= zeroBookingDays %> day<%= zeroBookingDays === 1 ? '' : 's' %> had zero bookings. Useful when planning promotions.</div>
+                    </div>
+                    <div class="muted" style="white-space: nowrap;"><%= zeroBookingDays %></div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="muted" style="margin: 0 0 10px 0;">Performance</h3>
+            <div class="list">
+                <div class="list__item">
+                    <div>
+                        <strong>Last 7 days vs previous 7</strong>
+                        <div class="muted">Bookings: <%= last7Bookings %> (was <%= prev7Bookings %>) · Tickets: <%= last7Tickets %> (was <%= prev7Tickets %>)</div>
+                    </div>
+                    <div class="muted" style="white-space: nowrap;"><%= bookingDeltaLabel %></div>
+                </div>
+
+                <div class="list__item">
+                    <div>
+                        <strong>Overall occupancy</strong>
+                        <div class="muted">Across all events: <%= dashboard.totals.tickets %> sold out of <%= dashboard.totals.capacity %> capacity.</div>
+                    </div>
+                    <div class="muted" style="white-space: nowrap;"><%= overallOccupancy === null ? '—' : overallOccupancy.toFixed(1) + '%' %></div>
+                </div>
+
+                <div class="list__item">
+                    <div>
+                        <strong>Average order size</strong>
+                        <div class="muted"><%= avgTicketsPerBooking.toFixed(2) %> tickets per booking on average.</div>
+                    </div>
+                    <div class="muted" style="white-space: nowrap;"><%= avgTicketsPerBooking.toFixed(2) %></div>
+                </div>
+
+                <div class="list__item">
+                    <div>
+                        <strong>Value per booking</strong>
+                        <div class="muted">Average revenue per booking based on current ticket prices.</div>
+                    </div>
+                    <div class="muted" style="white-space: nowrap;">£<%= avgRevenuePerBooking.toFixed(2) %></div>
+                </div>
+
+                <div class="list__item">
+                    <div>
+                        <strong>Revenue per ticket</strong>
+                        <div class="muted">Revenue divided by tickets sold (handy when comparing events with different pricing).</div>
+                    </div>
+                    <div class="muted" style="white-space: nowrap;"><%= dashboard.totals.tickets ? '£' + revenuePerTicket.toFixed(2) : '—' %></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<script type="application/json" id="dashboard-data"><%- JSON.stringify(dashboard) %></script>
+<script>
+(function () {
+    const dataEl = document.getElementById('dashboard-data');
+    const data = dataEl ? JSON.parse(dataEl.textContent || '{}') : {};
+
+    const stateCounts = (data && data.stateCounts) ? data.stateCounts : { draft: 0, published: 0 };
+    const topRevenue = Array.isArray(data && data.topRevenue) ? data.topRevenue : [];
+    const topOccupancy = Array.isArray(data && data.topOccupancy) ? data.topOccupancy : [];
+    const last30 = Array.isArray(data && data.last30) ? data.last30 : [];
+
+
+    const palette = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#22d3ee', '#fb7185', '#4ade80'];
+
+    function setupCanvas(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return ctx;
+    }
+
+    function clear(ctx, w, h) {
+        ctx.clearRect(0, 0, w, h);
+    }
+
+    function renderLegend(containerId, items) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+
+        el.innerHTML = '';
+        items.forEach(function (item) {
+            const row = document.createElement('div');
+            row.className = 'legend__row';
+
+            const swatch = document.createElement('span');
+            swatch.className = 'legend__swatch';
+            swatch.style.background = item.color;
+
+            const label = document.createElement('span');
+            label.className = 'legend__label';
+            label.textContent = item.label + ': ' + item.value;
+
+            row.appendChild(swatch);
+            row.appendChild(label);
+            el.appendChild(row);
+        });
+    }
+
+    function drawDonut(canvasId, labels, values) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const ctx = setupCanvas(canvas);
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        clear(ctx, w, h);
+
+        const total = values.reduce(function (a, b) { return a + b; }, 0) || 1;
+
+        const cx = w / 2;
+        const cy = h / 2;
+        const r = Math.min(w, h) * 0.35;
+        const inner = r * 0.55;
+
+        let start = -Math.PI / 2;
+        values.forEach(function (v, i) {
+            const angle = (v / total) * (Math.PI * 2);
+            const end = start + angle;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, r, start, end);
+            ctx.closePath();
+            ctx.fillStyle = palette[i % palette.length];
+            ctx.fill();
+
+            start = end;
+        });
+
+        // Cut out the middle to make it a donut.
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.beginPath();
+        ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+
+        // Centre label.
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.font = '600 20px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(total), cx, cy - 8);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+        ctx.fillText('events', cx, cy + 14);
+
+        renderLegend('legendState', labels.map(function (l, i) {
+            return { label: l, value: values[i], color: palette[i % palette.length] };
+        }));
+    }
+
+    function drawBar(canvasId, labels, values, valueSuffix) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const ctx = setupCanvas(canvas);
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        clear(ctx, w, h);
+
+        const padding = { top: 18, right: 14, bottom: 64, left: 44 };
+        const chartW = w - padding.left - padding.right;
+        const chartH = h - padding.top - padding.bottom;
+
+        const max = Math.max.apply(null, values.concat([1]));
+        const barW = chartW / Math.max(labels.length, 1);
+
+        function formatValue(v) {
+            const n = Number.isFinite(v) ? v : 0;
+            const text = String(n);
+            if (!valueSuffix) return text;
+            if (valueSuffix === '£') return '£' + text;
+            return text + valueSuffix;
+        }
+
+        // Axes
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, padding.top + chartH);
+        ctx.lineTo(padding.left + chartW, padding.top + chartH);
+        ctx.stroke();
+
+        // Bars + labels
+        labels.forEach(function (label, i) {
+            const v = values[i] || 0;
+            const bh = (v / max) * chartH;
+            const x = padding.left + i * barW + barW * 0.12;
+            const y = padding.top + (chartH - bh);
+            const bw = barW * 0.76;
+
+            ctx.fillStyle = palette[i % palette.length];
+            ctx.fillRect(x, y, bw, bh);
+
+            // Value
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(formatValue(v), x + bw / 2, y - 4);
+
+            // Label
+            ctx.save();
+            ctx.translate(x + bw / 2, padding.top + chartH + 10);
+            ctx.fillStyle = 'rgba(255,255,255,0.70)';
+            ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(label, 0, 0);
+            ctx.restore();
+        });
+    }
+
+    function drawLine(canvasId, labels, values) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const ctx = setupCanvas(canvas);
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        clear(ctx, w, h);
+
+        const padding = { top: 18, right: 14, bottom: 42, left: 44 };
+        const chartW = w - padding.left - padding.right;
+        const chartH = h - padding.top - padding.bottom;
+
+        const max = Math.max.apply(null, values.concat([1]));
+        const min = 0;
+
+        function formatValue(v) {
+            const text = String(v);
+            if (!valueSuffix) return text;
+            if (valueSuffix === '£') return '£' + text;
+            return text + valueSuffix;
+        }
+
+        function xFor(i) {
+            if (labels.length <= 1) return padding.left;
+            return padding.left + (i / (labels.length - 1)) * chartW;
+        }
+
+        function yFor(v) {
+            const t = (v - min) / (max - min);
+            return padding.top + (1 - t) * chartH;
+        }
+
+        // Axis
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top);
+        ctx.lineTo(padding.left, padding.top + chartH);
+        ctx.lineTo(padding.left + chartW, padding.top + chartH);
+        ctx.stroke();
+
+        // Line
+        ctx.strokeStyle = palette[0];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        values.forEach(function (v, i) {
+            const x = xFor(i);
+            const y = yFor(v);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Points
+        ctx.fillStyle = palette[0];
+        values.forEach(function (v, i) {
+            const x = xFor(i);
+            const y = yFor(v);
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Simple tick labels (start/middle/end)
+        const idxs = [0, Math.floor(labels.length / 2), labels.length - 1].filter(function (v, i, a) { return a.indexOf(v) === i; });
+        idxs.forEach(function (i) {
+            const x = xFor(i);
+            ctx.fillStyle = 'rgba(255,255,255,0.70)';
+            ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillText(labels[i], x, padding.top + chartH + 8);
+        });
+    }
+
+        // Build and draw charts
+    drawDonut('chartState', ['Draft', 'Published'], [stateCounts.draft || 0, stateCounts.published || 0]);
+
+    drawBar(
+        'chartRevenue',
+        topRevenue.map(function (r) { return r.label; }),
+        topRevenue.map(function (r) { return Number(Number(r.value || 0).toFixed(2)); }),
+        '£'
+    );
+
+    drawBar(
+        'chartOccupancy',
+        topOccupancy.map(function (r) { return r.label; }),
+        topOccupancy.map(function (r) { return Number(Number(r.value || 0).toFixed(1)); }),
+        '%'
+    );
+
+    drawLine(
+        'chartBookings',
+        last30.map(function (r) { return String(r.day || '').slice(5); }),
+        last30.map(function (r) { return Number(r.bookings || 0); })
+    );
+})();
+</script>
+
+<%- include('partials/footer') %>
